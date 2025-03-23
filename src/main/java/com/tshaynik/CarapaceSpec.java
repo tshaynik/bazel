@@ -4,38 +4,68 @@ import com.google.devtools.build.lib.runtime.Command;
 import com.google.devtools.build.lib.runtime.commands.*;
 import com.google.devtools.common.options.Option;
 import com.google.devtools.common.options.OptionsBase;
+import java.io.PrintWriter;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Field;
+import java.util.*;
+import java.util.Arrays;
+import java.util.stream.Collectors;
+import org.yaml.snakeyaml.Yaml;
 
 class CarapaceSpec {
   public static void main(String[] args) {
+    Map<String, Object> spec = new HashMap<>();
+    spec.put("name", "bazel");
+    String[] aliases = {"bazelisk"};
+    spec.put("aliases", aliases);
+    spec.put("description", "build system");
+
     Class<BuildCommand> classObject = BuildCommand.class;
-    readCommandAnnotation(classObject);
+    Map<String, Object> subcommands = readCommandAnnotation(classObject);
+    spec.put("commands", subcommands);
+
+    Class<com.google.devtools.build.lib.bazel.BazelStartupOptionsModule.Options> startupClass =
+        com.google.devtools.build.lib.bazel.BazelStartupOptionsModule.Options.class;
+    spec.put("flags", readOptionAnnotation(startupClass));
+
+    PrintWriter writer = new PrintWriter(System.out, true);
+    Yaml yaml = new Yaml();
+    yaml.dump(spec, writer);
   }
 
-  static void readCommandAnnotation(AnnotatedElement element) {
+  static Map<String, Object> readCommandAnnotation(AnnotatedElement element) {
+    Map<String, Object> spec = new HashMap<>();
     try {
       if (element.isAnnotationPresent(Command.class)) {
         // getAnnotation returns Annotation type
         Annotation singleAnnotation = element.getAnnotation(Command.class);
         Command cmd = (Command) singleAnnotation;
 
-        System.out.println(cmd.name());
-        System.out.println(cmd.shortDescription());
-        System.out.println(cmd.usesConfigurationOptions());
-        System.out.println(cmd.buildPhase());
+        spec.put("name", cmd.name());
+        spec.put("description", cmd.shortDescription());
+        // spec.put("uses_configuration_options", cmd.usesConfigurationOptions());
+        // spec.put("build_phase", cmd.buildPhase());
 
-        for (Class<? extends OptionsBase> optionClass : cmd.options()) {
-          readOptionAnnotation(optionClass);
-        }
+        Map<String, Object> options =
+            Arrays.stream(cmd.options())
+                .map(CarapaceSpec::readOptionAnnotation)
+                .flatMap(map -> map.entrySet().stream())
+                .collect(
+                    Collectors.toMap(
+                        entry -> entry.getKey(),
+                        entry -> Optional.ofNullable(entry.getValue()),
+                        (existingValue, newValue) -> newValue));
+        spec.put("flags", options);
       }
     } catch (Exception exception) {
       exception.printStackTrace();
     }
+    return spec;
   }
 
-  static void readOptionAnnotation(Class<? extends OptionsBase> optionGroup) {
+  static Map<String, Object> readOptionAnnotation(Class<? extends OptionsBase> optionGroup) {
+    Map<String, Object> optionMap = new HashMap<>();
     Field[] fields = optionGroup.getDeclaredFields();
     for (Field field : fields) {
       try {
@@ -44,18 +74,29 @@ class CarapaceSpec {
           Annotation singleAnnotation = field.getAnnotation(Option.class);
           Option opt = (Option) singleAnnotation;
 
-          System.out.println(opt.name());
-          // System.out.println(field.getType().getName());
-          System.out.println(opt.abbrev());
-          System.out.println(opt.help());
-          System.out.println(opt.valueHelp());
-          System.out.println(opt.defaultValue());
-          System.out.println(opt.documentationCategory());
+          String flag = "--" + opt.name();
+          if (opt.abbrev() != '\0') {
+            flag += ", -" + opt.abbrev();
+          }
+          optionMap.put(flag, getFlag(opt));
+
+          if (field.getType().equals(boolean.class)) {
+            optionMap.put("--no" + opt.name(), getFlag(opt));
+          }
         }
       } catch (Exception exception) {
         exception.printStackTrace();
       }
-      System.out.println("");
     }
+    return optionMap;
+  }
+
+  static Map<String, Object> getFlag(Option opt) {
+    Map<String, Object> optionMap = new HashMap<>();
+    optionMap.put("description", opt.help());
+    // optionMap.put("valueHelp", opt.valueHelp());
+    // optionMap.put("defaultValue", opt.defaultValue());
+    // optionMap.put("documentationCategory", opt.documentationCategory());
+    return optionMap;
   }
 }
