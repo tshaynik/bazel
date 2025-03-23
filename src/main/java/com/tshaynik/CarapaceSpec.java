@@ -23,6 +23,8 @@ class CarapaceSpec {
 
         System.out.println(cmd.name());
         System.out.println(cmd.shortDescription());
+        System.out.println(cmd.usesConfigurationOptions());
+        System.out.println(cmd.buildPhase());
 
         for (Class<? extends OptionsBase> optionClass : cmd.options()) {
           readOptionAnnotation(optionClass);
@@ -36,15 +38,19 @@ class CarapaceSpec {
   static void readOptionAnnotation(Class<? extends OptionsBase> optionGroup) {
     Field[] fields = optionGroup.getDeclaredFields();
     for (Field field : fields) {
-      System.out.println("  name:" + field.getName());
-      System.out.println("  type:" + field.getType().getName());
       try {
         if (field.isAnnotationPresent(Option.class)) {
           // getAnnotation returns Annotation type
           Annotation singleAnnotation = field.getAnnotation(Option.class);
           Option opt = (Option) singleAnnotation;
 
-          System.out.println("  " + opt.name());
+          System.out.println(opt.name());
+          // System.out.println(field.getType().getName());
+          System.out.println(opt.abbrev());
+          System.out.println(opt.help());
+          System.out.println(opt.valueHelp());
+          System.out.println(opt.defaultValue());
+          System.out.println(opt.documentationCategory());
         }
       } catch (Exception exception) {
         exception.printStackTrace();
