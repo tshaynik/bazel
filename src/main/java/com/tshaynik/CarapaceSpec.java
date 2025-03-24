@@ -22,7 +22,9 @@ class CarapaceSpec {
     spec.put("description", "build system");
 
     Class<BuildCommand> classObject = BuildCommand.class;
-    Map<String, Object> subcommands = readCommandAnnotation(classObject);
+    Map<String, Object> buildCommand = readCommandAnnotation(classObject);
+
+    Object[] subcommands = {buildCommand};
     spec.put("commands", subcommands);
 
     Class<com.google.devtools.build.lib.bazel.BazelStartupOptionsModule.Options> startupClass =
@@ -54,7 +56,7 @@ class CarapaceSpec {
                 .collect(
                     Collectors.toMap(
                         entry -> entry.getKey(),
-                        entry -> Optional.ofNullable(entry.getValue()),
+                        entry -> entry.getValue(),
                         (existingValue, newValue) -> newValue));
         spec.put("flags", options);
       }
@@ -64,8 +66,8 @@ class CarapaceSpec {
     return spec;
   }
 
-  static Map<String, Object> readOptionAnnotation(Class<? extends OptionsBase> optionGroup) {
-    Map<String, Object> optionMap = new HashMap<>();
+  static Map<String, String> readOptionAnnotation(Class<? extends OptionsBase> optionGroup) {
+    Map<String, String> optionMap = new HashMap<>();
     Field[] fields = optionGroup.getDeclaredFields();
     for (Field field : fields) {
       try {
@@ -76,27 +78,18 @@ class CarapaceSpec {
 
           String flag = "--" + opt.name();
           if (opt.abbrev() != '\0') {
-            flag += ", -" + opt.abbrev();
+            flag = "-" + opt.abbrev() + ", " + flag;
           }
-          optionMap.put(flag, getFlag(opt));
+          optionMap.put(flag, opt.valueHelp() + " " + opt.help());
 
           if (field.getType().equals(boolean.class)) {
-            optionMap.put("--no" + opt.name(), getFlag(opt));
+            optionMap.put("--no" + opt.name(), opt.valueHelp() + " " + opt.help());
           }
         }
       } catch (Exception exception) {
         exception.printStackTrace();
       }
     }
-    return optionMap;
-  }
-
-  static Map<String, Object> getFlag(Option opt) {
-    Map<String, Object> optionMap = new HashMap<>();
-    optionMap.put("description", opt.help());
-    // optionMap.put("valueHelp", opt.valueHelp());
-    // optionMap.put("defaultValue", opt.defaultValue());
-    // optionMap.put("documentationCategory", opt.documentationCategory());
     return optionMap;
   }
 }
