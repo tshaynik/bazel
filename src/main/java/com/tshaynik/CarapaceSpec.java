@@ -1,5 +1,6 @@
 package com.tshaynik;
 
+import com.google.devtools.build.lib.runtime.BlazeCommand;
 import com.google.devtools.build.lib.runtime.Command;
 import com.google.devtools.build.lib.runtime.commands.*;
 import com.google.devtools.common.options.Option;
@@ -21,10 +22,14 @@ class CarapaceSpec {
     spec.put("aliases", aliases);
     spec.put("description", "build system");
 
-    Class<BuildCommand> classObject = BuildCommand.class;
-    Map<String, Object> buildCommand = readCommandAnnotation(classObject);
+    List<Class<? extends BlazeCommand>> commandObjects = new ArrayList<>();
+    commandObjects.add(AqueryCommand.class);
+    commandObjects.add(BuildCommand.class);
+    commandObjects.add(QueryCommand.class);
 
-    Object[] subcommands = {buildCommand};
+    Object[] subcommands =
+        commandObjects.stream().map(CarapaceSpec::readCommandAnnotation).toArray();
+
     spec.put("commands", subcommands);
 
     Class<com.google.devtools.build.lib.bazel.BazelStartupOptionsModule.Options> startupClass =
