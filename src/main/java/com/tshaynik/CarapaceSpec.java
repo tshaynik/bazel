@@ -27,8 +27,28 @@ class CarapaceSpec {
     commandObjects.add(BuildCommand.class);
     commandObjects.add(QueryCommand.class);
 
-    Object[] subcommands =
-        commandObjects.stream().map(CarapaceSpec::readCommandAnnotation).toArray();
+    List<Map<String, Object>> subcommands =
+        commandObjects.stream()
+            .map(CarapaceSpec::readCommandAnnotation)
+            .collect(Collectors.toCollection(ArrayList::new));
+
+    // `help` subcommand needs all other bazel subcommands as its subcommands
+    // but just the names without all the flags.
+    List<Map<String, Object>> subcommandNames =
+        subcommands.stream()
+            .map(
+                map -> {
+                  Map<String, Object> filteredMap = new HashMap<>();
+                  if (map.containsKey("name")) {
+                    filteredMap.put("name", map.get("name"));
+                  }
+                  return filteredMap;
+                })
+            .collect(Collectors.toList());
+
+    Map<String, Object> helpCommand = readCommandAnnotation(HelpCommand.class);
+    helpCommand.put("commands", subcommandNames);
+    subcommands.add(helpCommand);
 
     spec.put("commands", subcommands);
 
@@ -51,8 +71,6 @@ class CarapaceSpec {
 
         spec.put("name", cmd.name());
         spec.put("description", cmd.shortDescription());
-        // spec.put("uses_configuration_options", cmd.usesConfigurationOptions());
-        // spec.put("build_phase", cmd.buildPhase());
 
         Map<String, Object> options =
             Arrays.stream(cmd.options())
@@ -85,7 +103,7 @@ class CarapaceSpec {
           if (opt.abbrev() != '\0') {
             flag = "-" + opt.abbrev() + ", " + flag;
           }
-          optionMap.put(flag, opt.valueHelp() + " " + opt.help());
+          optionMap.put(flag, opt.valueHelp() + opt.help().replace("\\", "\\\\"));
 
           if (field.getType().equals(boolean.class)) {
             optionMap.put("--no" + opt.name(), opt.valueHelp() + " " + opt.help());

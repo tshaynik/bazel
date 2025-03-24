@@ -10,3 +10,18 @@ java_binary(
         "@maven//:org_yaml_snakeyaml",
     ],
 )
+
+genrule(
+    name = "carapace_spec",
+    outs = ["spec.yaml"],
+    tools = [":CarapaceSpec"],
+    cmd = "$(location :CarapaceSpec) > $@",
+)
+
+genrule(
+    name = "carapace_codegen",
+    srcs = [":carapace_spec"],
+    outs = ["bazel_completion.go"],
+    # tools = ["c"],
+    cmd = "carapace --codegen $< > $@",
+)
