@@ -1,8 +1,10 @@
 package com.tshaynik;
 
+import com.google.devtools.build.lib.bazel.commands.*;
 import com.google.devtools.build.lib.runtime.BlazeCommand;
 import com.google.devtools.build.lib.runtime.Command;
 import com.google.devtools.build.lib.runtime.commands.*;
+import com.google.devtools.build.lib.runtime.mobileinstall.MobileInstallCommand;
 import com.google.devtools.common.options.Option;
 import com.google.devtools.common.options.OptionsBase;
 import java.io.PrintWriter;
@@ -25,6 +27,26 @@ class CarapaceSpec {
     List<Class<? extends BlazeCommand>> commandObjects = new ArrayList<>();
     commandObjects.add(AqueryCommand.class);
     commandObjects.add(BuildCommand.class);
+    commandObjects.add(BuildCommand.class);
+    commandObjects.add(CanonicalizeCommand.class);
+    commandObjects.add(CleanCommand.class);
+    commandObjects.add(CoverageCommand.class);
+    commandObjects.add(CqueryCommand.class);
+    commandObjects.add(DumpCommand.class);
+    commandObjects.add(FetchCommand.class);
+    commandObjects.add(InfoCommand.class);
+    commandObjects.add(LicenseCommand.class);
+    commandObjects.add(MobileInstallCommand.class);
+    commandObjects.add(ModCommand.class);
+    commandObjects.add(PrintActionCommand.class);
+    commandObjects.add(QueryCommand.class);
+    commandObjects.add(RunCommand.class);
+    commandObjects.add(ShutdownCommand.class);
+    commandObjects.add(SyncCommand.class);
+    commandObjects.add(TestCommand.class);
+    commandObjects.add(VendorCommand.class);
+    commandObjects.add(VersionCommand.class);
+
     commandObjects.add(QueryCommand.class);
 
     List<Map<String, Object>> subcommands =
@@ -106,7 +128,7 @@ class CarapaceSpec {
           optionMap.put(flag, opt.valueHelp() + opt.help().replace("\\", "\\\\"));
 
           if (field.getType().equals(boolean.class)) {
-            optionMap.put("--no" + opt.name(), opt.valueHelp() + " " + opt.help());
+            optionMap.put("--no" + opt.name(), opt.valueHelp() + opt.help());
           }
         }
       } catch (Exception exception) {
