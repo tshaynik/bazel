@@ -25,8 +25,9 @@ class CarapaceSpec {
     spec.put("description", "build system");
 
     List<Class<? extends BlazeCommand>> commandObjects = new ArrayList<>();
-    commandObjects.add(AqueryCommand.class);
     commandObjects.add(BuildCommand.class);
+    commandObjects.add(TestCommand.class);
+    commandObjects.add(AqueryCommand.class);
     commandObjects.add(BuildCommand.class);
     commandObjects.add(CanonicalizeCommand.class);
     commandObjects.add(CleanCommand.class);
@@ -43,7 +44,6 @@ class CarapaceSpec {
     commandObjects.add(RunCommand.class);
     commandObjects.add(ShutdownCommand.class);
     commandObjects.add(SyncCommand.class);
-    commandObjects.add(TestCommand.class);
     commandObjects.add(VendorCommand.class);
     commandObjects.add(VersionCommand.class);
 
@@ -94,7 +94,7 @@ class CarapaceSpec {
         spec.put("name", cmd.name());
         spec.put("description", cmd.shortDescription());
 
-        Map<String, Object> options =
+        Map<String, String> options =
             Arrays.stream(cmd.options())
                 .map(CarapaceSpec::readOptionAnnotation)
                 .flatMap(map -> map.entrySet().stream())
@@ -103,8 +103,30 @@ class CarapaceSpec {
                         entry -> entry.getKey(),
                         entry -> entry.getValue(),
                         (existingValue, newValue) -> newValue));
-        spec.put("flags", options);
+
+        // Recursively gather inherited flags
+        List<Map<String, String>> allOptions =
+            Arrays.stream(cmd.inheritsOptionsFrom())
+                .map(CarapaceSpec::readCommandAnnotation)
+                .map(inheritCmd -> inheritCmd.get("flags"))
+                .filter(obj -> obj instanceof Map)
+                .map(obj -> (Map<String, String>) obj)
+                .collect(Collectors.toList());
+
+        allOptions.add(options);
+
+        Map<String, String> flags =
+            allOptions.stream()
+                .flatMap(map -> map.entrySet().stream())
+                .collect(
+                    Collectors.toMap(
+                        entry -> entry.getKey(),
+                        entry -> entry.getValue(),
+                        (existingValue, newValue) -> newValue));
+
+        spec.put("flags", flags);
       }
+
     } catch (Exception exception) {
       exception.printStackTrace();
     }

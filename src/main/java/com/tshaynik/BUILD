@@ -14,15 +14,7 @@ java_binary(
 
 genrule(
     name = "carapace_spec",
-    outs = ["spec.yaml"],
+    outs = ["bazel.yaml"],
     tools = [":CarapaceSpec"],
     cmd = "$(location :CarapaceSpec) > $@",
-)
-
-genrule(
-    name = "carapace_codegen",
-    srcs = [":carapace_spec"],
-    outs = ["bazel_completion.go"],
-    # tools = ["c"],
-    cmd = "carapace --codegen $< > $@",
 )
