@@ -2,7 +2,9 @@ package com.tshaynik;
 
 import com.google.devtools.build.lib.bazel.commands.*;
 import com.google.devtools.build.lib.runtime.BlazeCommand;
+import com.google.devtools.build.lib.runtime.BlazeServerStartupOptions;
 import com.google.devtools.build.lib.runtime.Command;
+import com.google.devtools.build.lib.runtime.HostJvmStartupOptions;
 import com.google.devtools.build.lib.runtime.commands.*;
 import com.google.devtools.build.lib.runtime.mobileinstall.MobileInstallCommand;
 import com.google.devtools.common.options.Option;
@@ -25,8 +27,6 @@ class CarapaceSpec {
     spec.put("description", "build system");
 
     List<Class<? extends BlazeCommand>> commandObjects = new ArrayList<>();
-    commandObjects.add(BuildCommand.class);
-    commandObjects.add(TestCommand.class);
     commandObjects.add(AqueryCommand.class);
     commandObjects.add(BuildCommand.class);
     commandObjects.add(CanonicalizeCommand.class);
@@ -40,9 +40,11 @@ class CarapaceSpec {
     commandObjects.add(MobileInstallCommand.class);
     commandObjects.add(ModCommand.class);
     commandObjects.add(PrintActionCommand.class);
+    commandObjects.add(ProfileCommand.class);
     commandObjects.add(QueryCommand.class);
     commandObjects.add(RunCommand.class);
     commandObjects.add(ShutdownCommand.class);
+    commandObjects.add(TestCommand.class);
     commandObjects.add(SyncCommand.class);
     commandObjects.add(VendorCommand.class);
     commandObjects.add(VersionCommand.class);
@@ -74,9 +76,22 @@ class CarapaceSpec {
 
     spec.put("commands", subcommands);
 
-    Class<com.google.devtools.build.lib.bazel.BazelStartupOptionsModule.Options> startupClass =
-        com.google.devtools.build.lib.bazel.BazelStartupOptionsModule.Options.class;
-    spec.put("flags", readOptionAnnotation(startupClass));
+    List<Class<? extends OptionsBase>> startupOptions = new ArrayList<>();
+    startupOptions.add(com.google.devtools.build.lib.bazel.BazelStartupOptionsModule.Options.class);
+    startupOptions.add(HostJvmStartupOptions.class);
+    startupOptions.add(BlazeServerStartupOptions.class);
+
+    Map<String, String> startupOptionFlags =
+        startupOptions.stream()
+            .map(CarapaceSpec::readOptionAnnotation)
+            .flatMap(map -> map.entrySet().stream())
+            .collect(
+                Collectors.toMap(
+                    entry -> entry.getKey(),
+                    entry -> entry.getValue(),
+                    (existingValue, newValue) -> newValue));
+
+    spec.put("flags", startupOptionFlags);
 
     PrintWriter writer = new PrintWriter(System.out, true);
     Yaml yaml = new Yaml();
@@ -143,7 +158,16 @@ class CarapaceSpec {
           Annotation singleAnnotation = field.getAnnotation(Option.class);
           Option opt = (Option) singleAnnotation;
 
-          String flag = "--" + opt.name();
+          String flagSuffix;
+          if (opt.allowMultiple()) {
+            flagSuffix = "*";
+          } else if (!opt.valueHelp().isEmpty()) {
+            flagSuffix = "=";
+          } else {
+            flagSuffix = "";
+          }
+
+          String flag = "--" + opt.name() + (opt.valueHelp().isEmpty() ? "" : "=");
           if (opt.abbrev() != '\0') {
             flag = "-" + opt.abbrev() + ", " + flag;
           }
